@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Container / role mapping — ChefMate</title>
+    <link rel="stylesheet" href="paper.css" />
+    <style>
+      /* Dense tables: stay inside page without clipping system fonts */
+      table.data.dense {
+        font-size: 100%;
+        table-layout: fixed;
+      }
+      table.data.dense th,
+      table.data.dense td {
+        padding: 0.3rem 0.35rem;
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
+        hyphens: auto;
+      }
+      table.data.dense th:nth-child(1) {
+        width: 9%;
+      }
+      table.data.dense th:nth-child(2) {
+        width: 14%;
+      }
+      table.data.dense th:nth-child(3) {
+        width: 38%;
+      }
+      table.data.dense th:nth-child(4) {
+        width: 39%;
+      }
+      h3.section {
+        margin: 1rem 0 0.35rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--ink);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="title-block">
+        <h1 class="doc-title">Container / role mapping (initial implementation)</h1>
+        <p class="doc-meta">ChefMate · Apr 6 joint table · Dockerfile/Compose · Kubernetes</p>
+      </header>
+
+      <p class="abstract">
+        <strong>Scope.</strong> Role → container → build source → manifest. Roles: Training, Serving, Data,
+        DevOps/Platform. Contract: agreed JSON I/O samples. <code>TBD</code>: integration pending;
+        <code>task.md</code> Q2.2 for IaC/K8s scope.
+      </p>
+
+      <h2>1. DevOps / IaC</h2>
+      <p>
+        No Dockerfile for cloud provisioning. Sources: Terraform, Ansible, Helm values + K8s manifests. Column
+        “Compose” lists IaC paths where applicable. Workloads: upstream images unless noted.
+      </p>
+
+      <h2>2. Master table</h2>
+      <div class="table-wrap">
+        <table class="data dense">
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Container / workload</th>
+              <th>Dockerfile, Compose, or equivalent</th>
+              <th>Kubernetes / deployment</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>DevOps/Platform</td>
+              <td><code>mealie</code></td>
+              <td>
+                Upstream <code>ghcr.io/mealie-recipes/mealie</code>
+                (<a href="https://github.com/mealie-recipes/mealie">mealie-recipes/mealie</a>)
+              </td>
+              <td>
+                <code>k8s/staging/templates/mealie.yaml</code>,
+                <code>k8s/staging/values.yaml</code>
+              </td>
+            </tr>
+            <tr>
+              <td>DevOps/Platform</td>
+              <td><code>mealie-postgres</code></td>
+              <td>
+                Upstream <code>postgres:17</code>
+                (<a href="https://github.com/docker-library/postgres">docker-library/postgres</a>)
+              </td>
+              <td>Same Mealie chart</td>
+            </tr>
+            <tr>
+              <td>DevOps/Platform</td>
+              <td><code>mlflow</code></td>
+              <td>
+                Upstream <code>ghcr.io/mlflow/mlflow</code>
+                (<a href="https://github.com/mlflow/mlflow">mlflow/mlflow</a>)
+              </td>
+              <td>
+                <code>k8s/platform/templates/mlflow.yaml</code>,
+                <code>k8s/platform/values.yaml</code>
+              </td>
+            </tr>
+            <tr>
+              <td>DevOps/Platform</td>
+              <td><code>postgres</code> (platform)</td>
+              <td>Upstream <code>postgres:17</code></td>
+              <td>
+                <code>k8s/platform/templates/postgres.yaml</code>,
+                <code>k8s/platform/values.yaml</code>
+              </td>
+            </tr>
+            <tr>
+              <td>DevOps/Platform</td>
+              <td><code>minio</code></td>
+              <td>
+                Upstream <code>minio/minio</code>
+                (<a href="https://github.com/minio/minio">minio/minio</a>)
+              </td>
+              <td>
+                <code>k8s/platform/templates/minio.yaml</code>,
+                <code>k8s/platform/values.yaml</code>
+              </td>
+            </tr>
+            <tr>
+              <td>DevOps/Platform</td>
+              <td><code>mc</code> (bucket Job)</td>
+              <td>Upstream <code>minio/mc</code></td>
+              <td><code>k8s/platform/templates/minio.yaml</code> (Job <code>minio-create-bucket</code>)</td>
+            </tr>
+            <tr>
+              <td>DevOps/Platform</td>
+              <td>Cluster VMs, network, k3s</td>
+              <td><code>tf/kvm/</code> (<code>main.tf</code>, <code>variables.tf</code>, …)</td>
+              <td>N/A (cloud); cluster hosts workloads below</td>
+            </tr>
+            <tr>
+              <td>DevOps/Platform</td>
+              <td>Kubernetes bootstrap</td>
+              <td>
+                <code>ansible/inventory.yml</code>,
+                <code>ansible/post_k8s/</code>
+              </td>
+              <td>Namespaces e.g. <code>chefmate-staging</code>, <code>chefmate-platform</code></td>
+            </tr>
+            <tr>
+              <td>DevOps/Platform</td>
+              <td>GitOps (Argo CD)</td>
+              <td>
+                <code>ansible/argocd/</code>
+                (<code>argocd_add_staging.yml</code>, <code>argocd_add_platform.yml</code>, …)
+              </td>
+              <td>Helm charts from repo via Argo CD</td>
+            </tr>
+            <tr>
+              <td>DevOps/Platform</td>
+              <td><code>loki</code> (optional)</td>
+              <td>Grafana Helm chart values (no local Dockerfile)</td>
+              <td>
+                <code>k8s/logging/loki-values.yaml</code>,
+                <code>ansible/argocd/argocd_add_logging.yml</code>
+              </td>
+            </tr>
+            <tr>
+              <td>DevOps/Platform</td>
+              <td><code>promtail</code> (optional)</td>
+              <td>Grafana Helm chart values</td>
+              <td>
+                <code>k8s/logging/promtail-values.yaml</code>,
+                <code>ansible/argocd/argocd_add_logging.yml</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Training</td>
+              <td>Training job container(s)</td>
+              <td><strong>TBD</strong> — Training repo <code>Dockerfile</code></td>
+              <td>
+                <strong>TBD</strong> — MLflow:
+                <code>k8s/platform/templates/mlflow.yaml</code>; optional future Job/Workflow
+              </td>
+            </tr>
+            <tr>
+              <td>Data</td>
+              <td>Pipeline / ingest / batch</td>
+              <td><strong>TBD</strong> — Data repo Dockerfile / Compose</td>
+              <td>
+                <strong>TBD</strong> — may use
+                <code>k8s/platform/templates/minio.yaml</code> or future charts
+              </td>
+            </tr>
+            <tr>
+              <td>Serving</td>
+              <td><code>triton_server</code></td>
+              <td>
+                <a href="https://github.com/HivanshD/serving/blob/main/docker-compose-triton.yaml"
+                  >docker-compose-triton.yaml</a
+                >,
+                <a href="https://github.com/HivanshD/serving/blob/main/Dockerfile.triton">Dockerfile.triton</a>
+              </td>
+              <td>
+                <strong>TBD</strong> — no Triton Helm chart in this repo yet
+              </td>
+            </tr>
+            <tr>
+              <td>Serving</td>
+              <td><code>triton_client</code></td>
+              <td>
+                Same Compose,
+                <a href="https://github.com/HivanshD/serving/blob/main/Dockerfile.triton_client"
+                  >Dockerfile.triton_client</a
+                >
+              </td>
+              <td><strong>TBD</strong></td>
+            </tr>
+            <tr>
+              <td>Serving</td>
+              <td><code>jupyter</code> (Triton stack)</td>
+              <td>Compose + upstream <code>jupyter/base-notebook</code></td>
+              <td><strong>TBD</strong></td>
+            </tr>
+            <tr>
+              <td>Serving</td>
+              <td><code>fastapi_server</code> (ONNX)</td>
+              <td>
+                <a href="https://github.com/HivanshD/serving/blob/main/docker-compose-fastapi.yaml"
+                  >docker-compose-fastapi.yaml</a
+                >,
+                <a href="https://github.com/HivanshD/serving/blob/main/fastapi_onnx/Dockerfile"
+                  >fastapi_onnx/Dockerfile</a
+                >
+              </td>
+              <td><strong>TBD</strong></td>
+            </tr>
+            <tr>
+              <td>Serving</td>
+              <td><code>jupyter</code> (FastAPI stack)</td>
+              <td>
+                <a href="https://github.com/HivanshD/serving/blob/main/docker-compose-fastapi.yaml"
+                  >docker-compose-fastapi.yaml</a
+                >
+                + <code>jupyter/base-notebook</code>
+              </td>
+              <td><strong>TBD</strong></td>
+            </tr>
+            <tr>
+              <td>Serving</td>
+              <td>FastAPI PyTorch variant</td>
+              <td>
+                <a href="https://github.com/HivanshD/serving/blob/main/fastapi_pt/Dockerfile"
+                  >fastapi_pt/Dockerfile</a
+                >
+                (no root Compose; optional <code>docker build</code>)
+              </td>
+              <td><strong>TBD</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="section">Serving: github.com/HivanshD/serving</h3>
+      <div class="table-wrap">
+        <table class="data dense">
+          <thead>
+            <tr>
+              <th>Compose file</th>
+              <th>Services</th>
+              <th>Build definitions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>docker-compose-triton.yaml</td>
+              <td><code>triton_server</code>, <code>triton_client</code>, <code>jupyter</code></td>
+              <td>Dockerfile.triton, Dockerfile.triton_client, GPU in Compose</td>
+            </tr>
+            <tr>
+              <td>docker-compose-fastapi.yaml</td>
+              <td><code>fastapi_server</code>, <code>jupyter</code></td>
+              <td>fastapi_onnx/Dockerfile</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="lede">
+        Serving: no Helm chart in this repo yet — <code>TBD</code> until <code>k8s/</code> + Argo CD.
+      </p>
+
+      <h2>3. Updates</h2>
+      <ul>
+        <li>Serving: update K8s column after <code>k8s/serving/</code> (or equivalent) + Argo playbook.</li>
+      </ul>
+    </main>
+  </body>
+</html>

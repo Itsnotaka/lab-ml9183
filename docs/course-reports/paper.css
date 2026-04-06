@@ -20,8 +20,9 @@
   box-sizing: border-box;
 }
 
+/* Root: browser default (usually 16px). Body text = 1rem. */
 html {
-  font-size: 13px;
+  font-size: 100%;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -30,6 +31,7 @@ body {
   background: #fff;
   color: var(--body);
   font-family: var(--sans);
+  font-size: 1rem;
   line-height: 1.55;
 }
 
@@ -107,7 +109,7 @@ code {
 table.data {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.78rem;
+  font-size: 100%;
 }
 
 table.data th,
@@ -121,7 +123,7 @@ table.data td {
 table.data thead th {
   color: var(--muted);
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: 100%;
 }
 
 table.data tbody td {
@@ -164,10 +166,11 @@ ul li strong {
 
 @media print {
   html {
-    font-size: 10.5pt;
+    font-size: 100%;
   }
 
   body {
+    font-size: 1rem;
     background: #fff;
   }
 
