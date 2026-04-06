@@ -1,0 +1,4 @@
+apiVersion: v2
+name: chefmate-production
+version: 1.0.0
+description: Production Mealie environment for ChefMate

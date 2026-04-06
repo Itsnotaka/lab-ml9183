@@ -1,0 +1,4 @@
+apiVersion: v2
+name: chefmate-platform
+version: 1.0.0
+description: ChefMate platform services for the Q2 milestone

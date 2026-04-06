@@ -1,0 +1,4 @@
+apiVersion: v2
+name: chefmate-canary
+version: 1.0.0
+description: Canary Mealie environment for ChefMate

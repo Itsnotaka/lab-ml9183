@@ -1,0 +1,91 @@
+---
+- name: Deploy canary Mealie chart with Helm
+  hosts: node1
+  become: true
+  vars:
+    kubeconfig_path: /etc/rancher/k3s/k3s.yaml
+    chart_src_path: "{{ playbook_dir }}/../../k8s/canary"
+    remote_chart_path: /tmp/chefmate-k8s/canary
+    release_name: chefmate-canary
+    namespace_name: chefmate-canary
+  tasks:
+    - name: Detect sharednet IP from ansible facts
+      ansible.builtin.set_fact:
+        external_ip: >-
+          {{
+            (
+              ansible_facts['all_ipv4_addresses']
+              | select('match', '^10\\.56\\.')
+              | list
+              | first
+            )
+            | default(ansible_facts['default_ipv4']['address'], true)
+          }}
+
+    - name: Ensure remote chart directory exists
+      ansible.builtin.file:
+        path: "{{ remote_chart_path }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy canary chart to node1
+      ansible.builtin.copy:
+        src: "{{ chart_src_path }}/"
+        dest: "{{ remote_chart_path }}/"
+        mode: preserve
+
+    - name: Ensure canary namespace exists
+      ansible.builtin.command: kubectl create namespace {{ namespace_name }}
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: ns_create
+      failed_when: ns_create.rc != 0 and 'AlreadyExists' not in ns_create.stderr
+      changed_when: ns_create.rc == 0
+
+    - name: Mark canary namespace as Helm-managed
+      ansible.builtin.shell: |
+        kubectl label namespace {{ namespace_name }} app.kubernetes.io/managed-by=Helm --overwrite
+        kubectl annotate namespace {{ namespace_name }} meta.helm.sh/release-name={{ release_name }} --overwrite
+        kubectl annotate namespace {{ namespace_name }} meta.helm.sh/release-namespace={{ namespace_name }} --overwrite
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      changed_when: true
+
+    - name: Check for existing Mealie secret
+      ansible.builtin.command: kubectl get secret mealie-credentials -n {{ namespace_name }}
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: mealie_secret_check
+      failed_when: false
+      changed_when: false
+
+    - name: Generate Mealie DB password
+      ansible.builtin.set_fact:
+        mealie_db_password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits') }}"
+      when: mealie_secret_check.rc != 0
+
+    - name: Create Mealie credentials secret
+      ansible.builtin.command: >-
+        kubectl create secret generic mealie-credentials
+        --namespace {{ namespace_name }}
+        --from-literal=postgres-user=mealie
+        --from-literal=postgres-password={{ mealie_db_password }}
+        --from-literal=postgres-db=mealie
+        --from-literal=base-url=http://{{ external_ip }}:8081
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      when: mealie_secret_check.rc != 0
+
+    - name: Install or upgrade canary chart
+      ansible.builtin.command: >-
+        helm upgrade --install {{ release_name }} {{ remote_chart_path }}
+        --namespace {{ namespace_name }}
+        --set-string service.externalIP={{ external_ip }}
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: helm_canary
+      changed_when: true
+
+    - name: Show Helm output
+      ansible.builtin.debug:
+        msg: "{{ helm_canary.stdout_lines }}"

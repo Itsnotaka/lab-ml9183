@@ -1,0 +1,4 @@
+apiVersion: v2
+name: chefmate-staging
+version: 1.0.0
+description: Staging Mealie environment for ChefMate

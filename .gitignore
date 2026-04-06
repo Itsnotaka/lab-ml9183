@@ -1,0 +1,19 @@
+# OpenStack / Terraform
+clouds.yaml
+terraform.tfvars
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Ansible / local config
+ansible/ansible.cfg
+ansible/k8s/inventory/mycluster/hosts.yaml
+
+# Local env / secrets
+.env
+.env.local
+*.log
+
+# OS
+.DS_Store

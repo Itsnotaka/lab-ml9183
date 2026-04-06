@@ -1,0 +1,289 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 3 /Kids [ 4 0 R 6 0 R 8 0 R ] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 3265 >>
+stream
+BT
+/F1 8 Tf
+32 560 Td
+10 TL
+(# Q2.1 Infrastructure Requirements Table) Tj
+T*
+() Tj
+T*
+(This document records the live Chameleon evidence used to right-size the Q2 DevOps/Platform deployment for ChefMate.) Tj
+T*
+() Tj
+T*
+(## Deployment Snapshot) Tj
+T*
+() Tj
+T*
+(- Site: `KVM@TACC`) Tj
+T*
+(- Cluster: `3`-node `k3s` cluster) Tj
+T*
+(- Node capacity: lease-backed `m1.large` equivalent capacity, `4 vCPU`, `8 GiB RAM`, `40 GiB disk` per node) Tj
+T*
+(- Healthy namespaces observed: `chefmate-platform`, `chefmate-staging`) Tj
+T*
+(- Bound PVCs observed:) Tj
+T*
+(  - `minio-pvc` = `20Gi`) Tj
+T*
+(  - `postgres-pvc` = `10Gi`) Tj
+T*
+(  - `mealie-data-pvc` = `8Gi`) Tj
+T*
+(  - `mealie-postgres-pvc` = `8Gi`) Tj
+T*
+() Tj
+T*
+(## Infrastructure Requirements Table) Tj
+T*
+() Tj
+T*
+(| Service | Namespace | GPU | CPU req/limit | Mem req/limit | Chameleon evidence | Right-sizing rationale |) Tj
+T*
+(|---|---|---|---|---|---|---|) Tj
+T*
+(| `mealie` | `chefmate-staging` | `0 / 0` | `250m / 1000m` | `512Mi / 1Gi` | Healthy on `node1`; `kubectl top pods -A` showed) Tj
+T*
+(about `266Mi` RAM during live validation. | Light web app for milestone-scale traffic; request is about 2x observed steady-state) Tj
+T*
+(memory and limit leaves burst headroom. |) Tj
+T*
+(| `mealie-postgres` | `chefmate-staging` | `0 / 0` | `250m / 1000m` | `512Mi / 1Gi` | Healthy on `node3`; `mealie-postgres-pvc`) Tj
+T*
+(bound at `8Gi`. | Small durable database for Mealie only; conservative allocation relative to `4 vCPU / 8 GiB` node capacity. |) Tj
+T*
+(| `postgres` | `chefmate-platform` | `0 / 0` | `250m / 1000m` | `512Mi / 1Gi` | Healthy on `node2`; `postgres-pvc` bound at) Tj
+T*
+(`10Gi`. | MLflow metadata backend with modest Q2 load; small guaranteed share plus enough limit headroom for spikes. |) Tj
+T*
+(| `minio` | `chefmate-platform` | `0 / 0` | `250m / 1000m` | `512Mi / 1Gi` | Healthy on `node2`; `minio-pvc` bound at `20Gi`;) Tj
+T*
+(bucket-init job completed. | Small object store for MLflow artifacts; modest request is enough for steady use and `1Gi` covers) Tj
+T*
+(startup and small transfer bursts. |) Tj
+T*
+(| `mlflow` | `chefmate-platform` | `0 / 0` | `250m / 1000m` | `512Mi / 1Gi` | Healthy on `node3`; service exposed on port `8000`.) Tj
+T*
+(| Light UI/API workload for a small team; low request preserves cluster headroom while the limit supports interactive use. |) Tj
+T*
+() Tj
+T*
+(## Why These Numbers Are Reasonable) Tj
+T*
+() Tj
+T*
+(The chosen requests and limits are intentionally small relative to the leased node capacity:) Tj
+T*
+() Tj
+T*
+(- `250m` CPU request is about `6.25%` of a `4 vCPU` node) Tj
+T*
+(- `1000m` CPU limit is about `25%` of a `4 vCPU` node) Tj
+T*
+(- `512Mi` memory request is about `6.25%` of an `8 GiB` node) Tj
+T*
+(- `1Gi` memory limit is about `12.5%` of an `8 GiB` node) Tj
+T*
+() Tj
+T*
+(This leaves substantial headroom for Kubernetes system services, storage provisioning, and startup bursts while still reserving) Tj
+T*
+(enough capacity for stable operation.) Tj
+T*
+() Tj
+T*
+(## Live Evidence Captured On Chameleon) Tj
+T*
+() Tj
+T*
+(### `kubectl get nodes -o wide`) Tj
+T*
+() Tj
+T*
+(```text) Tj
+T*
+(NAME    STATUS   ROLES           AGE     VERSION        INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION) Tj
+T*
+(CONTAINER-RUNTIME) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 2998 >>
+stream
+BT
+/F1 8 Tf
+32 560 Td
+10 TL
+(node1   Ready    control-plane   10m     v1.34.6+k3s1   10.56.2.160   <none>        Ubuntu 24.04.2 LTS   6.8.0-59-generic) Tj
+T*
+(containerd://2.2.2-bd1.34) Tj
+T*
+(node2   Ready    <none>          9m50s   v1.34.6+k3s1   10.56.0.211   <none>        Ubuntu 24.04.2 LTS   6.8.0-59-generic) Tj
+T*
+(containerd://2.2.2-bd1.34) Tj
+T*
+(node3   Ready    <none>          9m50s   v1.34.6+k3s1   10.56.1.186   <none>        Ubuntu 24.04.2 LTS   6.8.0-59-generic) Tj
+T*
+(containerd://2.2.2-bd1.34) Tj
+T*
+(```) Tj
+T*
+() Tj
+T*
+(### `kubectl get pods -A -o wide`) Tj
+T*
+() Tj
+T*
+(```text) Tj
+T*
+(NAMESPACE           NAME                                      READY   STATUS    RESTARTS   AGE    IP          NODE) Tj
+T*
+(chefmate-platform   minio-5ddd5b4b79-g5cwb                    1/1     Running   0          2m4s   10.42.1.4   node2) Tj
+T*
+(chefmate-platform   minio-create-bucket-xwbdq                 1/1     Running   0          2m4s   10.42.0.5   node1) Tj
+T*
+(chefmate-platform   mlflow-79f6b87489-5tr5q                   1/1     Running   0          2m4s   10.42.3.3   node3) Tj
+T*
+(chefmate-platform   postgres-7c5c96db86-rws8k                 1/1     Running   0          2m4s   10.42.1.5   node2) Tj
+T*
+(chefmate-staging    mealie-7b4c5cc7bf-xng5z                   1/1     Running   0          106s   10.42.0.7   node1) Tj
+T*
+(chefmate-staging    mealie-postgres-68ccbbb8bb-rt4lt          1/1     Running   0          106s   10.42.3.5   node3) Tj
+T*
+(```) Tj
+T*
+() Tj
+T*
+(### `kubectl get pvc -A`) Tj
+T*
+() Tj
+T*
+(```text) Tj
+T*
+(NAMESPACE           NAME                  STATUS   CAPACITY   STORAGECLASS) Tj
+T*
+(chefmate-platform   minio-pvc             Bound    20Gi       local-path) Tj
+T*
+(chefmate-platform   postgres-pvc          Bound    10Gi       local-path) Tj
+T*
+(chefmate-staging    mealie-data-pvc       Bound    8Gi        local-path) Tj
+T*
+(chefmate-staging    mealie-postgres-pvc   Bound    8Gi        local-path) Tj
+T*
+(```) Tj
+T*
+() Tj
+T*
+(### `kubectl top nodes`) Tj
+T*
+() Tj
+T*
+(```text) Tj
+T*
+(NAME    CPU\(cores\)   CPU\(%\)      MEMORY\(bytes\)   MEMORY\(%\)) Tj
+T*
+(node1   77m          1%          965Mi           12%) Tj
+T*
+(node2   <unknown>    <unknown>   <unknown>       <unknown>) Tj
+T*
+(node3   <unknown>    <unknown>   <unknown>       <unknown>) Tj
+T*
+(```) Tj
+T*
+() Tj
+T*
+(### `kubectl top pods -A`) Tj
+T*
+() Tj
+T*
+(```text) Tj
+T*
+(NAMESPACE           NAME                                      CPU\(cores\)   MEMORY\(bytes\)) Tj
+T*
+(chefmate-platform   minio-create-bucket-xwbdq                 1m           0Mi) Tj
+T*
+(chefmate-staging    mealie-7b4c5cc7bf-xng5z                   0m           266Mi) Tj
+T*
+(kube-system         coredns-76c974cb66-vwx2z                  3m           12Mi) Tj
+T*
+(kube-system         local-path-provisioner-8686667995-9spdk   1m           9Mi) Tj
+T*
+(kube-system         metrics-server-c8774f4f4-rrw8r            8m           19Mi) Tj
+T*
+(```) Tj
+T*
+() Tj
+T*
+(## Note On Metrics Completeness) Tj
+T*
+() Tj
+ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >>
+endobj
+9 0 obj
+<< /Length 620 >>
+stream
+BT
+/F1 8 Tf
+32 560 Td
+10 TL
+(At the time of capture, metrics for `node2`, `node3`, and some worker-hosted pods were still incomplete even though the pods) Tj
+T*
+(themselves were healthy and the services were reachable. The right-sizing decision therefore combines:) Tj
+T*
+() Tj
+T*
+(1. live measurements that were available) Tj
+T*
+(2. confirmed healthy pod placement across the cluster) Tj
+T*
+(3. PVC-backed storage status) Tj
+T*
+(4. known node capacity from the lease-backed `m1.large` deployment) Tj
+T*
+() Tj
+T*
+(That is sufficient to justify the selected requests and limits for the milestone-scale Q2 workload.) Tj
+ET
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000129 00000 n 
+0000000197 00000 n 
+0000000323 00000 n 
+0000003640 00000 n 
+0000003766 00000 n 
+0000006816 00000 n 
+0000006942 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+7613
+%%EOF
