@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Q2.1 — Infrastructure requirements and right-sizing</title>
+    <link rel="stylesheet" href="paper.css" />
+  </head>
+  <body>
+    <main>
+      <header class="title-block">
+        <h1 class="doc-title">Infrastructure requirements and right-sizing (Q2.1)</h1>
+        <p class="doc-meta">ChefMate course project · Chameleon Cloud (KVM@TACC) · Q2 DevOps/Platform</p>
+        <p class="doc-context">
+          Cluster: 3-node <code>k3s</code> · per node <code>4 vCPU</code>, <code>8 GiB RAM</code>,
+          <code>40 GiB disk</code> · <code>local-path</code> PVCs ·
+          <code>k8s/platform/values.yaml</code>, <code>k8s/staging/values.yaml</code>
+        </p>
+      </header>
+
+      <p class="abstract">
+        <strong>Abstract.</strong> Per-service CPU and memory requests and limits are set from live
+        <code>kubectl</code> observation on Chameleon and conservative headroom for a small
+        multi-tenant node layout. No workload requests GPUs (<code>0 / 0</code> everywhere).
+      </p>
+
+      <h2>1. Per-service table</h2>
+      <p class="lede">
+        Requests, limits, and the evidence and rationale used for sizing.
+      </p>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Namespace</th>
+              <th>GPU</th>
+              <th>CPU req/limit</th>
+              <th>Mem req/limit</th>
+              <th>Evidence and basis</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>mealie</code></td>
+              <td><code>chefmate-staging</code></td>
+              <td>0 / 0</td>
+              <td>250m / 1000m</td>
+              <td>512Mi / 1Gi</td>
+              <td>
+                <strong>Observed:</strong> <code>kubectl top pods -A</code> ~<code>266Mi</code> RAM;
+                pods healthy. <strong>Rationale:</strong> request ~2× steady memory; 1&nbsp;GiB limit
+                for burst on a small web app.
+              </td>
+            </tr>
+            <tr>
+              <td><code>mealie-postgres</code></td>
+              <td><code>chefmate-staging</code></td>
+              <td>0 / 0</td>
+              <td>250m / 1000m</td>
+              <td>512Mi / 1Gi</td>
+              <td>
+                <strong>Observed:</strong> <code>mealie-postgres-pvc</code> <code>Bound</code> at
+                <code>8Gi</code>; healthy. <strong>Rationale:</strong> single-app Postgres at Q2
+                load; modest reservation with conservative limit vs. node size.
+              </td>
+            </tr>
+            <tr>
+              <td><code>postgres</code></td>
+              <td><code>chefmate-platform</code></td>
+              <td>0 / 0</td>
+              <td>250m / 1000m</td>
+              <td>512Mi / 1Gi</td>
+              <td>
+                <strong>Observed:</strong> <code>postgres-pvc</code> <code>Bound</code> at
+                <code>10Gi</code>; MLflow metadata DB. <strong>Rationale:</strong> light metadata
+                workload, not high-throughput OLTP.
+              </td>
+            </tr>
+            <tr>
+              <td><code>minio</code></td>
+              <td><code>chefmate-platform</code></td>
+              <td>0 / 0</td>
+              <td>250m / 1000m</td>
+              <td>512Mi / 1Gi</td>
+              <td>
+                <strong>Observed:</strong> <code>minio-pvc</code> <code>Bound</code> at
+                <code>20Gi</code>; init job completed. <strong>Rationale:</strong> team-scale
+                artifact store; low request, higher limit for startup and transfers.
+              </td>
+            </tr>
+            <tr>
+              <td><code>mlflow</code></td>
+              <td><code>chefmate-platform</code></td>
+              <td>0 / 0</td>
+              <td>250m / 1000m</td>
+              <td>512Mi / 1Gi</td>
+              <td>
+                <strong>Observed:</strong> exposed on port <code>8000</code> with Postgres and
+                MinIO. <strong>Rationale:</strong> light UI/API for milestone use; 250m / 512Mi
+                request preserves headroom; 1 CPU / 1&nbsp;GiB limit for interactive use.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>2. Share of node capacity</h2>
+      <ul>
+        <li><code>250m</code> CPU request ≈ <strong>6.25%</strong> of a <code>4 vCPU</code> node.</li>
+        <li><code>1000m</code> CPU limit ≈ <strong>25%</strong>.</li>
+        <li><code>512Mi</code> memory request ≈ <strong>6.25%</strong> of <code>8 GiB</code>.</li>
+        <li><code>1Gi</code> memory limit ≈ <strong>12.5%</strong>.</li>
+        <li>Leaves room for kubelet, storage, and spikes while keeping services schedulable.</li>
+      </ul>
+
+      <h2>3. Evidence commands</h2>
+      <ul>
+        <li><code>kubectl get nodes -o wide</code> — cluster size and readiness</li>
+        <li><code>kubectl get pods -A -o wide</code> — placement and health</li>
+        <li><code>kubectl get pvc -A</code> — bound claims</li>
+        <li><code>kubectl top nodes</code>, <code>kubectl top pods -A</code> — utilization where available</li>
+      </ul>
+      <p>
+        Metrics were incomplete for some workers at capture; sizing combines available
+        measurements, healthy runtime, PVC status, and known node lease.
+      </p>
+
+      <p class="footnote">
+        Authoritative prose and numbers: <code>ansible/post_k8s/RIGHT_SIZING.md</code>. Export this
+        HTML to PDF from the browser if a PDF artifact is required.
+      </p>
+    </main>
+  </body>
+</html>

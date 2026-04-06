@@ -1,0 +1,69 @@
+---
+- name: Deploy centralized logging with Loki and Promtail
+  hosts: node1
+  become: true
+  vars:
+    kubeconfig_path: /etc/rancher/k3s/k3s.yaml
+    values_src_path: "{{ playbook_dir }}/../../k8s/logging"
+    remote_values_path: /tmp/chefmate-k8s/logging
+    namespace_name: chefmate-logging
+    loki_release_name: loki
+    promtail_release_name: promtail
+  tasks:
+    - name: Ensure remote values directory exists
+      ansible.builtin.file:
+        path: "{{ remote_values_path }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy logging values files to node1
+      ansible.builtin.copy:
+        src: "{{ values_src_path }}/"
+        dest: "{{ remote_values_path }}/"
+        mode: preserve
+
+    - name: Ensure logging namespace exists
+      ansible.builtin.command: kubectl create namespace {{ namespace_name }}
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: ns_create
+      failed_when: ns_create.rc != 0 and 'AlreadyExists' not in ns_create.stderr
+      changed_when: ns_create.rc == 0
+
+    - name: Add Grafana Helm repository
+      ansible.builtin.command: helm repo add grafana https://grafana.github.io/helm-charts
+      register: helm_repo_add
+      failed_when: helm_repo_add.rc != 0 and 'already exists' not in helm_repo_add.stderr
+      changed_when: helm_repo_add.rc == 0
+
+    - name: Update Helm repositories
+      ansible.builtin.command: helm repo update
+      changed_when: false
+
+    - name: Install or upgrade Loki
+      ansible.builtin.command: >-
+        helm upgrade --install {{ loki_release_name }} grafana/loki
+        --namespace {{ namespace_name }}
+        -f {{ remote_values_path }}/loki-values.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: helm_loki
+      changed_when: true
+
+    - name: Install or upgrade Promtail
+      ansible.builtin.command: >-
+        helm upgrade --install {{ promtail_release_name }} grafana/promtail
+        --namespace {{ namespace_name }}
+        -f {{ remote_values_path }}/promtail-values.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: helm_promtail
+      changed_when: true
+
+    - name: Show Loki Helm output
+      ansible.builtin.debug:
+        msg: "{{ helm_loki.stdout_lines }}"
+
+    - name: Show Promtail Helm output
+      ansible.builtin.debug:
+        msg: "{{ helm_promtail.stdout_lines }}"

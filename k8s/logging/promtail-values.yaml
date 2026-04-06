@@ -1,0 +1,19 @@
+daemonset:
+  enabled: true
+
+deployment:
+  enabled: false
+
+nodeSelector:
+  kubernetes.io/hostname: node1
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "250m"
+    memory: "256Mi"

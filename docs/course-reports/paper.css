@@ -1,0 +1,183 @@
+/* Shared course report / print-to-PDF stylesheet — sans, minimal header, A4 */
+@page {
+  size: A4;
+  margin: 20mm 18mm;
+}
+
+:root {
+  --ink: #111;
+  --body: #2a2a2a;
+  --muted: #555;
+  --rule: #ccc;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  background: #fff;
+  color: var(--body);
+  font-family: var(--sans);
+  line-height: 1.55;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1rem 1rem 2rem;
+}
+
+header.title-block {
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+h1.doc-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+p.doc-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+p.doc-context {
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+h2 {
+  margin: 1.15rem 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+p {
+  margin: 0 0 0.65rem;
+  text-align: justify;
+}
+
+p.lede {
+  font-size: 0.92rem;
+  color: var(--muted);
+  text-align: left;
+}
+
+.abstract {
+  margin: 0 0 1rem;
+}
+
+.abstract strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+}
+
+.table-wrap {
+  margin: 0.5rem 0 1rem;
+  overflow-x: auto;
+}
+
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+table.data th,
+table.data td {
+  padding: 0.45rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--rule);
+}
+
+table.data thead th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+table.data tbody td {
+  color: var(--body);
+  line-height: 1.45;
+}
+
+table.data tbody td:first-child {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+table.data td code {
+  font-weight: 500;
+}
+
+ul {
+  margin: 0 0 0.65rem;
+  padding-left: 1.2rem;
+  font-size: 0.92rem;
+  color: var(--body);
+}
+
+ul li {
+  margin-bottom: 0.35rem;
+}
+
+ul li strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.footnote {
+  margin-top: 1.25rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+@media print {
+  html {
+    font-size: 10.5pt;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  main {
+    max-width: none;
+    padding: 0;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}

@@ -1,0 +1,91 @@
+loki:
+  auth_enabled: false
+  commonConfig:
+    path_prefix: /var/loki
+    replication_factor: 1
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  storage:
+    type: filesystem
+  limits_config:
+    reject_old_samples: true
+    reject_old_samples_max_age: 168h
+    retention_period: 168h
+    ingestion_rate_mb: 8
+    ingestion_burst_size_mb: 16
+    volume_enabled: true
+  compactor:
+    working_directory: /var/loki/retention
+    compaction_interval: 10m
+    retention_enabled: true
+    retention_delete_delay: 2h
+    retention_delete_worker_count: 20
+    delete_request_store: filesystem
+
+deploymentMode: SingleBinary
+
+singleBinary:
+  replicas: 1
+  nodeSelector:
+    kubernetes.io/hostname: node1
+  persistence:
+    enabled: true
+    storageClass: local-path
+    size: 10Gi
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+
+chunksCache:
+  enabled: false
+
+resultsCache:
+  enabled: false
+
+gateway:
+  enabled: false
+
+lokiCanary:
+  enabled: false
+
+test:
+  enabled: false
+
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+ingester:
+  replicas: 0
+querier:
+  replicas: 0
+queryFrontend:
+  replicas: 0
+queryScheduler:
+  replicas: 0
+distributor:
+  replicas: 0
+compactor:
+  replicas: 0
+indexGateway:
+  replicas: 0
+bloomCompactor:
+  replicas: 0
+bloomGateway:
+  replicas: 0
+
+minio:
+  enabled: false

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Q3 Extra Credit — Centralized Logging (Loki, Promtail)</title>
+    <link rel="stylesheet" href="paper.css" />
+  </head>
+  <body>
+    <main>
+      <header class="title-block">
+        <h1 class="doc-title">Centralized logging with Loki and Promtail</h1>
+        <p class="doc-meta">ChefMate course project · Chameleon Cloud (KVM@TACC) · Q3 extra credit</p>
+      </header>
+
+      <p class="abstract">
+        <strong>Abstract.</strong> This extension adds centralized logging to the ChefMate Kubernetes
+        deployment: <code>Loki</code> as a persistent log backend and <code>Promtail</code> as the
+        shipper. It was outside the lab baseline and improves operability by keeping searchable logs
+        when pods restart or are replaced during debugging.
+      </p>
+
+      <h2>1. Integration</h2>
+      <p>
+        Deployed in <code>chefmate-logging</code>. Loki runs single-binary with PVC on
+        <code>node1</code> via <code>local-path</code>; Promtail ships cluster logs into Loki.
+        Artifacts: <code>ansible/argocd/argocd_add_logging.yml</code>,
+        <code>k8s/logging/loki-values.yaml</code>, <code>k8s/logging/promtail-values.yaml</code>.
+      </p>
+
+      <h2>2. Operability</h2>
+      <p>
+        Prior work relied on <code>kubectl logs</code>, which breaks under
+        <code>CrashLoopBackOff</code>, rapid restarts, or pod rename after rollout. Centralized logs
+        are queryable by namespace and container instead of a single pod instance.
+      </p>
+
+      <h2>3. Example</h2>
+      <p>
+        <code>MLflow</code> hit <code>CrashLoopBackOff</code> and <code>OOMKilled</code> during Q2
+        stabilization. After logging was added, restarts could be followed in Loki for namespace
+        <code>chefmate-platform</code> and container <code>mlflow</code> without racing pod names.
+      </p>
+
+      <h2>4. Validation</h2>
+      <p>
+        On the course cluster: healthy Loki with bound PVC, running Promtail, and successful Loki
+        queries after an MLflow rollout restart.
+      </p>
+
+      <h2>5. Conclusion</h2>
+      <p>
+        Durable, label-based log search addresses a real debugging constraint on Chameleon and goes
+        beyond the lab baseline with a concrete example from this deployment.
+      </p>
+
+      <p class="footnote">
+        Source note: <code>EXTRA_CREDIT_LOGGING.md</code> at repository root; Ansible and Helm
+        values paths as listed in §1.
+      </p>
+    </main>
+  </body>
+</html>
