@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Design Spec — Q2.1 Infrastructure Requirements</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 14mm 16mm;
+      }
+
+      :root {
+        --ink: #111;
+        --ink-soft: #333;
+        --muted: #666;
+        --faint: #999;
+        --surface: #f5f5f5;
+        --sans:
+          ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+          "Noto Sans", sans-serif;
+        --mono:
+          ui-monospace, "SF Mono", "Cascadia Code", "Segoe UI Mono", Menlo, Consolas, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        font-size: 15px;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        background: #fff;
+        color: var(--ink);
+        font-family: var(--sans);
+        font-weight: 400;
+        line-height: 1.5;
+        font-feature-settings:
+          "kern" 1,
+          "liga" 1;
+      }
+
+      .doc {
+        max-width: 48rem;
+        margin: 0 auto;
+        padding: 2.5rem 1.5rem 3rem;
+      }
+
+      /* Document header — resume / spec title block */
+      .doc-header {
+        margin-bottom: 2rem;
+      }
+
+      .doc-kicker {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--muted);
+        margin: 0 0 0.35rem;
+      }
+
+      .doc-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+        margin: 0 0 0.5rem;
+        color: var(--ink);
+      }
+
+      .doc-subtitle {
+        font-size: 0.8125rem;
+        color: var(--ink-soft);
+        margin: 0;
+        line-height: 1.45;
+      }
+
+      .doc-meta {
+        margin-top: 1.25rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+        gap: 0.75rem 1.5rem;
+      }
+
+      .doc-meta dt {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--muted);
+        margin: 0 0 0.15rem;
+      }
+
+      .doc-meta dd {
+        margin: 0;
+        font-size: 0.8125rem;
+        color: var(--ink);
+        line-height: 1.4;
+      }
+
+      /* Sections */
+      section {
+        margin-bottom: 2rem;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .section-label {
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: var(--ink);
+        margin: 0 0 0.65rem;
+      }
+
+      h2.section-label {
+        font-size: 0.875rem;
+      }
+
+      .lede {
+        font-size: 0.8125rem;
+        color: var(--ink-soft);
+        margin: 0 0 1rem;
+        line-height: 1.55;
+      }
+
+      .note {
+        font-size: 0.75rem;
+        color: var(--ink-soft);
+        background: var(--surface);
+        padding: 0.75rem 0.9rem;
+        border-radius: 0.375rem;
+        margin: 0 0 1rem;
+        line-height: 1.5;
+      }
+
+      .note strong {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      section ul.plain + .note {
+        margin-top: 1rem;
+      }
+
+      /* Borderless data table */
+      .data-table-wrap {
+        margin: 0 -0.25rem;
+        overflow-x: auto;
+      }
+
+      table.data {
+        width: 100%;
+        border-collapse: collapse;
+        border-spacing: 0;
+        font-size: 0.75rem;
+        table-layout: fixed;
+      }
+
+      table.data thead th {
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.75rem;
+        color: var(--muted);
+        padding: 0.5rem 0.65rem 0.6rem;
+        vertical-align: bottom;
+      }
+
+      table.data tbody tr {
+        background: transparent;
+      }
+
+      table.data tbody tr:nth-child(odd) {
+        background: var(--surface);
+      }
+
+      table.data td {
+        padding: 0.65rem 0.65rem;
+        vertical-align: top;
+        color: var(--ink-soft);
+        line-height: 1.45;
+      }
+
+      table.data td:first-child {
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      table.data th,
+      table.data td {
+        border: none;
+      }
+
+      .col-service {
+        width: 11%;
+      }
+      .col-namespace {
+        width: 13%;
+      }
+      .col-gpu {
+        width: 7%;
+      }
+      .col-cpu {
+        width: 12%;
+      }
+      .col-mem {
+        width: 12%;
+      }
+      .col-evidence {
+        width: 45%;
+      }
+
+      code {
+        font-family: var(--mono);
+        font-size: 0.92em;
+        font-weight: 500;
+        color: var(--ink);
+      }
+
+      ul.plain {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      ul.plain li {
+        position: relative;
+        padding-left: 1rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.8125rem;
+        color: var(--ink-soft);
+        line-height: 1.5;
+      }
+
+      ul.plain li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.55em;
+        width: 0.25rem;
+        height: 0.25rem;
+        border-radius: 50%;
+        background: var(--faint);
+      }
+
+      ul.plain li strong {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .footer-note {
+        font-size: 0.6875rem;
+        color: var(--muted);
+        margin-top: 2.5rem;
+        padding-top: 1.25rem;
+        line-height: 1.5;
+      }
+
+      .nowrap {
+        white-space: nowrap;
+      }
+
+      @media screen {
+        body {
+          background: #e8e8e8;
+        }
+
+        .doc {
+          background: #fff;
+          margin: 1.5rem auto;
+          padding: 2.5rem 2rem 3rem;
+          border-radius: 2px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+      }
+
+      @media print {
+        html {
+          font-size: 10.5pt;
+        }
+
+        body {
+          background: #fff;
+        }
+
+        .doc {
+          max-width: none;
+          margin: 0;
+          padding: 0;
+          box-shadow: none;
+        }
+
+        a {
+          color: inherit;
+          text-decoration: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <article class="doc">
+      <header class="doc-header">
+        <p class="doc-kicker">Design specification</p>
+        <h1 class="doc-title">Q2.1 Infrastructure requirements</h1>
+        <p class="doc-subtitle">
+          ChefMate course project &middot; Chameleon Cloud (<span class="nowrap">KVM@TACC</span>)
+          &middot; Q2 DevOps/Platform submission
+        </p>
+        <dl class="doc-meta">
+          <div>
+            <dt>Cluster</dt>
+            <dd>3-node <code>k3s</code></dd>
+          </div>
+          <div>
+            <dt>Node capacity</dt>
+            <dd><code>4 vCPU</code>, <code>8 GiB RAM</code>, <code>40 GiB disk</code></dd>
+          </div>
+          <div>
+            <dt>Storage</dt>
+            <dd><code>local-path</code> PVCs for app and platform state</dd>
+          </div>
+          <div>
+            <dt>Configuration source</dt>
+            <dd><code>k8s/platform/values.yaml</code>, <code>k8s/staging/values.yaml</code></dd>
+          </div>
+        </dl>
+      </header>
+
+      <section>
+        <p class="note">
+          GPU request and limit are <strong>0 / 0</strong> for every service: no Kubernetes manifest
+          in this deployment requests GPU resources.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="section-label">Infrastructure requirements table</h2>
+        <p class="lede">
+          Per-service GPU, CPU, and memory requests and limits, with Chameleon evidence and the
+          basis for right-sizing.
+        </p>
+        <div class="data-table-wrap">
+          <table class="data" role="table">
+            <thead>
+              <tr>
+                <th class="col-service">Service</th>
+                <th class="col-namespace">Namespace</th>
+                <th class="col-gpu">GPU</th>
+                <th class="col-cpu">CPU req/limit</th>
+                <th class="col-mem">Mem req/limit</th>
+                <th class="col-evidence">Chameleon evidence and right-sizing basis</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>mealie</code></td>
+                <td><code>chefmate-staging</code></td>
+                <td>0 / 0</td>
+                <td>250m / 1000m</td>
+                <td>512Mi / 1Gi</td>
+                <td>
+                  <strong>Observed:</strong> <code>kubectl top pods -A</code> showed about
+                  <code>266Mi</code> RAM during validation, and
+                  <code>kubectl get pods -A -o wide</code> showed the service healthy in Kubernetes.
+                  <strong>Rationale:</strong> request is about 2x observed steady-state memory and
+                  the 1 GiB limit preserves burst headroom for a small web application workload.
+                </td>
+              </tr>
+              <tr>
+                <td><code>mealie-postgres</code></td>
+                <td><code>chefmate-staging</code></td>
+                <td>0 / 0</td>
+                <td>250m / 1000m</td>
+                <td>512Mi / 1Gi</td>
+                <td>
+                  <strong>Observed:</strong> <code>mealie-postgres-pvc</code> was
+                  <code>Bound</code> at <code>8Gi</code>, and the service was healthy during live
+                  cluster validation. <strong>Rationale:</strong> this is a single-application
+                  Postgres instance with modest Q2 load, so a small guaranteed reservation plus
+                  conservative limit is appropriate relative to the node size.
+                </td>
+              </tr>
+              <tr>
+                <td><code>postgres</code></td>
+                <td><code>chefmate-platform</code></td>
+                <td>0 / 0</td>
+                <td>250m / 1000m</td>
+                <td>512Mi / 1Gi</td>
+                <td>
+                  <strong>Observed:</strong> <code>postgres-pvc</code> was <code>Bound</code> at
+                  <code>10Gi</code> and the platform database was running as the MLflow backend.
+                  <strong>Rationale:</strong> the workload is a lightweight metadata database for
+                  MLflow rather than a high-throughput transactional database, so the selected
+                  reservation is intentionally modest.
+                </td>
+              </tr>
+              <tr>
+                <td><code>minio</code></td>
+                <td><code>chefmate-platform</code></td>
+                <td>0 / 0</td>
+                <td>250m / 1000m</td>
+                <td>512Mi / 1Gi</td>
+                <td>
+                  <strong>Observed:</strong> <code>minio-pvc</code> was <code>Bound</code> at
+                  <code>20Gi</code>, and the bucket initialization job completed successfully.
+                  <strong>Rationale:</strong> MinIO stores MLflow artifacts for a small team-scale
+                  project, so the request remains low while the limit provides headroom for startup
+                  and artifact transfers.
+                </td>
+              </tr>
+              <tr>
+                <td><code>mlflow</code></td>
+                <td><code>chefmate-platform</code></td>
+                <td>0 / 0</td>
+                <td>250m / 1000m</td>
+                <td>512Mi / 1Gi</td>
+                <td>
+                  <strong>Observed:</strong> MLflow was deployed behind the platform service on port
+                  <code>8000</code> and backed by Postgres plus MinIO.
+                  <strong>Rationale:</strong> this is a light UI/API workload for milestone-scale
+                  experimentation, so a 250m / 512Mi request preserves cluster headroom while 1 CPU
+                  and 1 GiB limit covers interactive use.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="section-label">Why these values are reasonable</h2>
+        <ul class="plain">
+          <li>
+            <code>250m</code> CPU request is about <strong>6.25%</strong> of a
+            <code>4 vCPU</code> node.
+          </li>
+          <li>
+            <code>1000m</code> CPU limit is about <strong>25%</strong> of a
+            <code>4 vCPU</code> node.
+          </li>
+          <li>
+            <code>512Mi</code> memory request is about <strong>6.25%</strong> of an
+            <code>8 GiB</code> node.
+          </li>
+          <li>
+            <code>1Gi</code> memory limit is about <strong>12.5%</strong> of an
+            <code>8 GiB</code> node.
+          </li>
+          <li>
+            This leaves substantial headroom for Kubernetes system components, storage provisioning,
+            and temporary workload spikes while still reserving enough resources for stable service
+            operation.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="section-label">Chameleon evidence used</h2>
+        <ul class="plain">
+          <li>
+            <code>kubectl get nodes -o wide</code> to confirm cluster size, node readiness, and host
+            capacity context.
+          </li>
+          <li>
+            <code>kubectl get pods -A -o wide</code> to confirm service placement and healthy
+            runtime state.
+          </li>
+          <li>
+            <code>kubectl get pvc -A</code> to confirm durable storage claims were bound for
+            platform and application services.
+          </li>
+          <li>
+            <code>kubectl top nodes</code> and <code>kubectl top pods -A</code> to capture live
+            utilization where metrics were available.
+          </li>
+        </ul>
+        <p class="note">
+          Metrics were incomplete for some worker-hosted workloads at capture time, so the final
+          sizing decision combines direct measurements that were available, healthy pod runtime
+          behavior, PVC-backed storage status, and the known leased node capacity.
+        </p>
+      </section>
+
+      <p class="footer-note">
+        Print this page from the browser to PDF for the Q2.1 submission artifact.
+      </p>
+    </article>
+  </body>
+</html>
