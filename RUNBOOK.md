@@ -25,6 +25,9 @@ This is the deployment path that has already been executed successfully and shou
 6. Ansible uses `stdout_callback = default` and `callback_result_format = yaml`
 7. the `chefmate-platform` namespace is healthy with `MLflow`, `MinIO`, and `Postgres`
 8. the `chefmate-staging` namespace is the Mealie deployment used for `Q2.3`
+9. `k8s/staging` pins both `mealie` and `mealie-postgres` to `node1`
+10. `k8s/platform` pins `mlflow`, `minio`, `minio-create-bucket`, and `postgres` to `node1`
+11. if a namespace previously created `local-path` PVCs on another node, the working recovery is to delete and recreate the whole namespace so the PVCs are reprovisioned on `node1`
 
 If Mealie is currently reachable from a local browser session, that is already strong evidence that the application itself is running on Chameleon. In that case, any remaining issue is likely public exposure or service-routing polish, not a failed deployment.
 
@@ -423,6 +426,96 @@ Expected result:
 2. Mealie credentials secret is created
 3. the release installs successfully
 
+## 13A. Recover Existing Q2 Namespaces When Storage Is Stuck On The Wrong Node
+
+This repo uses the default `local-path` storage class for Q2. That means PVC-backed volumes are node-local. In the actual Chameleon deployment, cross-node pod networking also proved unreliable enough to break app-to-database traffic when a service and its database landed on different nodes.
+
+The working Q2 pattern is therefore:
+
+1. pin each app and its stateful dependency to `node1`
+2. if the namespace already existed before the pinning change, delete and recreate the whole namespace so fresh PVCs are provisioned on `node1`
+
+### Recover `chefmate-staging`
+
+Use this when `mealie` cannot reach `mealie-postgres`, or when an old `mealie-postgres` pod is stuck on another node.
+
+On `node1`:
+
+```bash
+kubectl delete namespace chefmate-staging --wait=false
+kubectl get namespace chefmate-staging -w
+```
+
+If it gets stuck in `Terminating`:
+
+```bash
+kubectl -n chefmate-staging delete pod --all --grace-period=0 --force
+kubectl patch namespace chefmate-staging -p '{"spec":{"finalizers":[]}}' --type=merge
+```
+
+Then redeploy from the control host:
+
+```bash
+cd /work/chefmate-iac/ansible
+ansible-playbook -i inventory.yml argocd/argocd_add_staging.yml
+```
+
+Verify:
+
+```bash
+kubectl -n chefmate-staging get pods -o wide
+kubectl -n chefmate-staging logs deploy/mealie --tail=100
+kubectl -n chefmate-staging get pvc
+```
+
+Expected result:
+
+1. `mealie` and `mealie-postgres` are both on `node1`
+2. PVCs are freshly `Bound`
+3. Mealie logs do not show `psycopg2.OperationalError`
+
+### Recover `chefmate-platform`
+
+Use this when `mlflow`, `minio`, or `postgres` are `Pending`, `Terminating`, or `CrashLoopBackOff` because old PVCs were created on another node.
+
+On `node1`:
+
+```bash
+kubectl delete namespace chefmate-platform --wait=false
+kubectl get namespace chefmate-platform -w
+```
+
+If it gets stuck in `Terminating`:
+
+```bash
+kubectl -n chefmate-platform delete pod --all --grace-period=0 --force
+kubectl patch namespace chefmate-platform -p '{"spec":{"finalizers":[]}}' --type=merge
+```
+
+Then redeploy from the control host:
+
+```bash
+cd /work/chefmate-iac/ansible
+ansible-playbook -i inventory.yml argocd/argocd_add_platform.yml
+```
+
+Verify:
+
+```bash
+kubectl -n chefmate-platform get pods -o wide
+kubectl -n chefmate-platform get pvc
+kubectl -n chefmate-platform get svc
+kubectl -n chefmate-platform logs deploy/mlflow --tail=100
+```
+
+Expected result:
+
+1. `mlflow`, `minio`, and `postgres` are all on `node1`
+2. `minio-pvc` and `postgres-pvc` are `Bound`
+3. `mlflow` logs show the server starting successfully
+4. an initial few `mlflow` restarts are acceptable if the pod later becomes `Ready`
+5. if `mlflow` shows `OOMKilled`, raise its memory in `k8s/platform/values.yaml` to `requests.memory: 1Gi` and `limits.memory: 2Gi`, then rerun `argocd/argocd_add_platform.yml`
+
 ## 14. Verify The Running Cluster
 
 SSH to `node1` if needed:
@@ -452,34 +545,52 @@ Check specifically that:
 
 ## 15. Browser And Service Verification
 
-Use the floating IP of `node1` plus the ports or ingress rules you actually configured.
+Direct browser access to the floating IP may still fail even when the services are healthy. In the actual Q2 deployment, the reliable browser path was an SSH tunnel from the laptop through `node1` to the current Kubernetes service or pod IPs.
 
-Examples if using the current port-based layout:
-
-- Mealie: `http://<FLOATING_IP>:8082`
-- MLflow: `http://<FLOATING_IP>:8000`
-- MinIO Console: `http://<FLOATING_IP>:9001`
-
-If direct browser access to the floating IP is flaky but the service is working, you can validate from a local browser through an SSH tunnel to the real Chameleon deployment:
+First get the current targets from `node1`:
 
 ```bash
-ssh -L 8082:10.56.2.160:8082 cc@<FLOATING_IP>
-ssh -L 8000:10.56.2.160:8000 cc@<FLOATING_IP>
-ssh -L 9001:10.56.2.160:9001 cc@<FLOATING_IP>
+kubectl -n chefmate-staging get pods -o wide
+kubectl -n chefmate-platform get pods -o wide
+kubectl -n chefmate-staging get svc mealie
+kubectl -n chefmate-platform get svc mlflow minio
+```
+
+Then, from the local laptop, create one SSH tunnel that forwards local ports through `node1`.
+
+If the service IP path works, use it. If it returns `Connection refused` or `Connection reset by peer`, use the current pod IP instead.
+
+Example using the current working Q2 pattern:
+
+```bash
+ssh -N -i ~/.ssh/id_rsa_chameleon \
+  -L 18082:<MEALIE_TARGET_IP>:8082 \
+  -L 18000:<MLFLOW_TARGET_IP>:8000 \
+  -L 19001:<MINIO_TARGET_IP>:9001 \
+  cc@<FLOATING_IP>
 ```
 
 Then open:
 
-- Mealie: `http://localhost:8082`
-- MLflow: `http://localhost:8000`
-- MinIO Console: `http://localhost:9001`
+- Mealie: `http://localhost:18082`
+- MLflow: `http://localhost:18000`
+- MinIO Console: `http://localhost:19001`
+
+Notes:
+
+1. the left-hand port is local to the laptop and may be changed if it is already in use
+2. the right-hand IP and port must match the current service or pod IPs from `kubectl`
+3. in the validated Q2 deployment, Mealie, MLflow, and MinIO were successfully reached from the laptop using this one-command SSH method; MLflow and MinIO were most reliable when tunneled to their current pod IPs after rollout
+4. do not tunnel to remote `127.0.0.1` unless you also started a separate `kubectl port-forward` on `node1`
+5. this tunnel method still proves the services are running on Chameleon; it only bypasses the unreliable direct floating-IP access path
 
 If a service does not load:
 
 1. check `kubectl get svc -A`
 2. check `kubectl get pods -A`
-3. check service type, node port, or ingress rule
-4. check security group rules on the public entrypoint
+3. verify that the SSH tunnel targets the current service or pod IP, not an old IP from a previous redeploy
+4. if `mlflow` is restarting, wait for it to finish startup before testing the tunnel
+5. check security group rules on the public entrypoint
 
 ## 16. Persistence Check
 

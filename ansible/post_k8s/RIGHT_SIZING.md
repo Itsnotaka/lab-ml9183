@@ -15,6 +15,7 @@ GPU is `0 / 0` for every service because this Q2 deployment does not request or 
 - Cluster: `3`-node `k3s` cluster
 - Node capacity: lease-backed `m1.large` equivalent capacity, `4 vCPU`, `8 GiB RAM`, `40 GiB disk` per node
 - Healthy namespaces observed: `chefmate-platform`, `chefmate-staging`
+- Final validated Q2 deployment: both `chefmate-staging` and `chefmate-platform` were recreated after node pinning so the PVC-backed workloads were reprovisioned on `node1`
 - Bound PVCs observed:
   - `minio-pvc` = `20Gi`
   - `postgres-pvc` = `10Gi`
@@ -26,21 +27,23 @@ GPU is `0 / 0` for every service because this Q2 deployment does not request or 
 | Service | Namespace | GPU | CPU req/limit | Mem req/limit | Chameleon evidence | Right-sizing rationale |
 |---|---|---|---|---|---|---|
 | `mealie` | `chefmate-staging` | `0 / 0` | `250m / 1000m` | `512Mi / 1Gi` | Healthy on `node1`; `kubectl top pods -A` showed about `266Mi` RAM during live validation. | Light web app for milestone-scale traffic; request is about 2x observed steady-state memory and limit leaves burst headroom. |
-| `mealie-postgres` | `chefmate-staging` | `0 / 0` | `250m / 1000m` | `512Mi / 1Gi` | Healthy on `node3`; `mealie-postgres-pvc` bound at `8Gi`. | Small durable database for Mealie only; conservative allocation relative to `4 vCPU / 8 GiB` node capacity. |
-| `postgres` | `chefmate-platform` | `0 / 0` | `250m / 1000m` | `512Mi / 1Gi` | Healthy on `node2`; `postgres-pvc` bound at `10Gi`. | MLflow metadata backend with modest Q2 load; small guaranteed share plus enough limit headroom for spikes. |
-| `minio` | `chefmate-platform` | `0 / 0` | `250m / 1000m` | `512Mi / 1Gi` | Healthy on `node2`; `minio-pvc` bound at `20Gi`; bucket-init job completed. | Small object store for MLflow artifacts; modest request is enough for steady use and `1Gi` covers startup and small transfer bursts. |
-| `mlflow` | `chefmate-platform` | `0 / 0` | `250m / 1000m` | `512Mi / 1Gi` | Healthy on `node3`; service exposed on port `8000`. | Light UI/API workload for a small team; low request preserves cluster headroom while the limit supports interactive use. |
+| `mealie-postgres` | `chefmate-staging` | `0 / 0` | `250m / 1000m` | `512Mi / 1Gi` | Final validated deployment ran `mealie-postgres` on `node1`; `mealie-postgres-pvc` remained `Bound` at `8Gi`. | Small durable database for Mealie only; conservative allocation relative to `4 vCPU / 8 GiB` node capacity. |
+| `postgres` | `chefmate-platform` | `0 / 0` | `250m / 1000m` | `512Mi / 1Gi` | Final validated deployment ran `postgres` on `node1`; `postgres-pvc` remained `Bound` at `10Gi`. | MLflow metadata backend with modest Q2 load; small guaranteed share plus enough limit headroom for spikes. |
+| `minio` | `chefmate-platform` | `0 / 0` | `250m / 1000m` | `512Mi / 1Gi` | Final validated deployment ran `minio` on `node1`; `minio-pvc` remained `Bound` at `20Gi`; the bucket-init job completed successfully. | Small object store for MLflow artifacts; modest request is enough for steady use and `1Gi` covers startup and small transfer bursts. |
+| `mlflow` | `chefmate-platform` | `0 / 0` | `250m / 1000m` | `1Gi / 2Gi` | After pinning platform services to `node1`, `mlflow` initially showed `OOMKilled` during startup and was increased to a larger memory envelope; it then came up healthy and served traffic on port `8000`. | MLflow needed more startup/runtime memory than the other Q2 services, so its request and limit were raised while still fitting comfortably within the `4 vCPU / 8 GiB` node budget. |
 
 ## Why These Numbers Are Reasonable
 
-The chosen requests and limits are intentionally small relative to the leased node capacity:
+The chosen requests and limits remain conservative relative to the leased node capacity:
 
 - `250m` CPU request is about `6.25%` of a `4 vCPU` node
 - `1000m` CPU limit is about `25%` of a `4 vCPU` node
 - `512Mi` memory request is about `6.25%` of an `8 GiB` node
+- `1Gi` memory request is about `12.5%` of an `8 GiB` node
 - `1Gi` memory limit is about `12.5%` of an `8 GiB` node
+- `2Gi` memory limit is about `25%` of an `8 GiB` node
 
-This leaves substantial headroom for Kubernetes system services, storage provisioning, and startup bursts while still reserving enough capacity for stable operation.
+Most services fit comfortably in the original `512Mi / 1Gi` envelope. `mlflow` was the exception during real Q2 validation: after co-locating the platform stack on `node1`, it briefly hit `OOMKilled`, so its memory was increased to `1Gi / 2Gi`. Even with that increase, the platform plus staging workloads still fit comfortably on the `node1` resource budget.
 
 ## Live Evidence Captured On Chameleon
 
